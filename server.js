@@ -235,13 +235,12 @@ async function scrapeTikTok(url) {
 
 async function downloadVideo(videoUrl) {
   const tmpFile = path.join(os.tmpdir(), "tiktok_" + Date.now() + ".mp4");
-  const isApify = videoUrl.includes("api.apify.com");
+  // Remove token from URL if present, use header instead to avoid conflict
   const response = await axios({
     url: videoUrl,
     method: "GET",
     responseType: "stream",
     timeout: 60000,
-    headers: isApify ? { "Authorization": "Bearer " + APIFY_KEY } : {}
   });
   const writer = fs.createWriteStream(tmpFile);
   response.data.pipe(writer);
@@ -259,6 +258,43 @@ async function extractFrames(videoPath) {
   return fs.readdirSync(outDir).sort().map(function(f) {
     return fs.readFileSync(path.join(outDir, f)).toString("base64");
   });
+}
+
+async function analyzeFromUrls(imageUrls, metadata, avatarName, productDesc, mode, splitChange) {
+  // Download images and convert to base64
+  const imageContent = [];
+  for (let i = 0; i < Math.min(imageUrls.length, 4); i++) {
+    try {
+      const resp = await axios({ url: imageUrls[i], method: "GET", responseType: "arraybuffer", timeout: 15000 });
+      const b64 = Buffer.from(resp.data).toString("base64");
+      const ct = resp.headers["content-type"] || "image/jpeg";
+      imageContent.push({ type: "image", source: { type: "base64", media_type: ct.split(";")[0], data: b64 } });
+    } catch(e) { console.log("Image fetch error:", e.message); }
+  }
+  if (imageContent.length === 0) throw new Error("Could not load any images from this video.");
+  const tasks = {
+    copy: "Create an exact frame-for-frame Higgsfield video prompt recreating this video. Keep EVERY visual element identical — setting, camera angle, lighting, framing, body language, action sequence. Only swap the person with the avatar below and feature the product below.",
+    split: "Generate TWO Higgsfield prompts for A/B split test. Version A = original environment. Version B = change: " + (splitChange || "different setting") + ". Avatar and action identical in both.",
+    hook: "Analyze what makes the hook stop the scroll, then write a Higgsfield prompt recreating ONLY that hook moment with the new avatar, making it hit harder."
+  };
+  const res = await axios.post(
+    "https://api.anthropic.com/v1/messages",
+    {
+      model: "claude-sonnet-4-6",
+      max_tokens: 1000,
+      system: "You are a TikTok video analyst and Higgsfield AI prompt engineer. Analyze the thumbnail/cover images from a viral TikTok precisely. Output ready-to-fire Higgsfield video prompts. Always: UGC style, shot on iPhone, no color grading, no studio lighting, hyper realistic, action starts frame one.",
+      messages: [{
+        role: "user",
+        content: [...imageContent, {
+          type: "text",
+          text: "These are thumbnail/cover images from a viral TikTok.\n\nSTATS: " + (metadata.playCount || "?") + " views, " + (metadata.diggCount || "?") + " likes\nCAPTION: " + (metadata.text || "none") + "\nAUDIO: " + ((metadata.musicMeta && metadata.musicMeta.musicName) || "unknown") + "\n\nAVATAR TO USE: " + avatarName + "\nPRODUCT TO FEATURE: " + productDesc + "\n\nTASK: " + tasks[mode]
+        }]
+      }]
+    },
+    { headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "Content-Type": "application/json" } }
+  );
+  const block = res.data.content && res.data.content.find(function(b) { return b.type === "text"; });
+  return block ? block.text : "";
 }
 
 async function analyzeFrames(frames, metadata, avatarName, productDesc, mode, splitChange) {
@@ -294,23 +330,22 @@ app.post("/analyze", async (req, res) => {
   const { tiktokUrl, avatarName, productDesc, mode, splitChange } = req.body;
   if (!tiktokUrl) return res.status(400).json({ error: "tiktokUrl is required" });
 
-  let videoPath = null;
   try {
     const metadata = await scrapeTikTok(tiktokUrl);
     if (!metadata) return res.status(400).json({ error: "Couldn't scrape that video. Make sure it's a public TikTok." });
 
-    // Use Apify KV store URL first (no 403), then fall back to other fields
-    const videoUrl = metadata._apifyVideoUrl
-      || metadata.videoUrl
-      || (metadata.videoMeta && metadata.videoMeta.downloadAddr)
-      || metadata.downloadAddr;
+    // Use public image URLs from metadata — no download needed, no auth issues
+    const imageUrls = [];
+    if (metadata.videoMeta && metadata.videoMeta.coverUrl) imageUrls.push(metadata.videoMeta.coverUrl);
+    if (metadata.videoMeta && metadata.videoMeta.originalCoverUrl) imageUrls.push(metadata.videoMeta.originalCoverUrl);
+    if (metadata.mediaUrls && Array.isArray(metadata.mediaUrls)) {
+      metadata.mediaUrls.forEach(function(u) { if (imageUrls.indexOf(u) === -1) imageUrls.push(u); });
+    }
 
-    if (!videoUrl) return res.status(400).json({ error: "No video found. Try a different TikTok URL." });
+    if (imageUrls.length === 0) return res.status(400).json({ error: "No images found for this video." });
 
-    videoPath = await downloadVideo(videoUrl);
-    const frames = await extractFrames(videoPath);
-    const prompt = await analyzeFrames(
-      frames, metadata,
+    const prompt = await analyzeFromUrls(
+      imageUrls, metadata,
       avatarName || "Hailey, 23, fair skin, bright blue eyes, long blonde hair",
       productDesc || "LumaForge firefighter resin lamp",
       mode || "copy",
@@ -329,8 +364,6 @@ app.post("/analyze", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message || "Something went wrong" });
-  } finally {
-    if (videoPath) { try { fs.unlinkSync(videoPath); } catch(e) {} }
   }
 });
 

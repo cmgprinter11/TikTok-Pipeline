@@ -275,7 +275,7 @@ app.post("/analyze", async (req, res) => {
   try {
     const metadata = await scrapeTikTok(tiktokUrl);
     if (!metadata) return res.status(400).json({ error: "Couldn't scrape that video." });
-    const videoUrl = metadata.videoUrl || metadata.downloadAddr;
+    const videoUrl = metadata.videoUrl || metadata.downloadAddr || (metadata.videoMeta && metadata.videoMeta.downloadAddr);
     if (!videoUrl) return res.status(400).json({ error: "No downloadable video found. Try a different URL." });
     videoPath = await downloadVideo(videoUrl);
     const frames = await extractFrames(videoPath);

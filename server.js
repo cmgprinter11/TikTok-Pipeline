@@ -73,48 +73,34 @@ input{width:100%;background:#0d0d0d;border:1.5px solid #222;border-radius:6px;co
 <div class="wrap">
 <h1>Paste TikTok → Claude Watches It → Higgsfield Prompt</h1>
 <p>AI sees your frames, analyzes the hook, rewrites it with your avatar + product</p>
-
 <div class="box" style="border-color:#ff6b2b44">
 <span class="lbl">1. TikTok URL</span>
 <div class="row">
 <input type="text" id="url" placeholder="https://www.tiktok.com/@username/video/...">
-<button class="btn" id="abtn" onclick="go()">ANALYZE →</button>
+<button class="btn" id="abtn" onclick="go()">ANALYZE</button>
 </div>
 </div>
-
 <div class="g3">
 <button class="mcard on" id="mc" onclick="setMode('copy')"><span class="mtag">EXACT CLONE</span><div class="mname">Copy 1:1</div><div class="mdesc">Frame-for-frame replica</div></button>
 <button class="mcard" id="ms" onclick="setMode('split')"><span class="mtag s">A/B TEST</span><div class="mname">Split Test</div><div class="mdesc">Two environments</div></button>
 <button class="mcard" id="mh" onclick="setMode('hook')"><span class="mtag h">HOOK ONLY</span><div class="mname">Recreate Hook</div><div class="mdesc">Just the scroll-stopper</div></button>
 </div>
-
 <div class="box" id="splitbox" style="display:none;border-color:#a855f744">
-<span class="lbl" style="color:#a855f7">What to change — Version B</span>
+<span class="lbl" style="color:#a855f7">What to change - Version B</span>
 <input type="text" id="sc" placeholder="e.g. sunny beach, different room...">
 </div>
-
 <div class="g2">
-<div class="box">
-<span class="lbl">2. Your Avatar</span>
-<div id="alist"></div>
-<input type="text" id="ca" placeholder="Describe your avatar..." style="display:none;margin-top:8px">
+<div class="box"><span class="lbl">2. Your Avatar</span><div id="alist"></div><input type="text" id="ca" placeholder="Describe your avatar..." style="display:none;margin-top:8px"></div>
+<div class="box"><span class="lbl">3. Your Product</span><div id="plist"></div><input type="text" id="cp" placeholder="Describe your product..." style="display:none;margin-top:8px"></div>
 </div>
-<div class="box">
-<span class="lbl">3. Your Product</span>
-<div id="plist"></div>
-<input type="text" id="cp" placeholder="Describe your product..." style="display:none;margin-top:8px">
-</div>
-</div>
-
-<div class="prog" id="prog"><p>Processing...</p><span>Scraping TikTok, downloading, extracting frames, Claude Vision analyzing... (~60-90 sec)</span></div>
+<div class="prog" id="prog"><p id="progmsg">Processing...</p><span>Scraping TikTok, downloading video, extracting frames, Claude Vision analyzing... (~60-90 sec)</span></div>
 <div class="err" id="err"></div>
 <div class="stats" id="stats"></div>
 <div class="res" id="res">
-<div class="rhead"><span class="rtitle">✓ PROMPT READY — PASTE INTO HIGGSFIELD</span><button class="cbtn" id="cbtn" onclick="cp2()">COPY</button></div>
+<div class="rhead"><span class="rtitle">PROMPT READY - PASTE INTO HIGGSFIELD</span><button class="cbtn" id="cbtn" onclick="cp2()">COPY</button></div>
 <div class="rtext" id="rtext"></div>
 </div>
 </div>
-
 <script>
 var AV=[
 {id:"hailey",n:"Hailey",d:"23, fair skin, light freckles, bright blue eyes, long blonde hair, left eyebrow piercing, small silver hoop nose ring, H initial gold necklace. Self-taught resin lamp artist from Texas."},
@@ -132,7 +118,6 @@ var PR=[
 {id:"custom",n:"Custom Product",d:""}
 ];
 var selAv="hailey",selPr="lamp",mode="copy",resultTxt="";
-
 function mkList(arr,cid,sel,type){
   var c=document.getElementById(cid);
   c.innerHTML="";
@@ -147,17 +132,22 @@ function mkList(arr,cid,sel,type){
     c.appendChild(d);
   });
 }
-
 function setMode(m){
   mode=m;
   ["mc","ms","mh"].forEach(function(id){document.getElementById(id).className="mcard";});
   document.getElementById(m==="copy"?"mc":m==="split"?"ms":"mh").className="mcard on";
   document.getElementById("splitbox").style.display=m==="split"?"block":"none";
 }
-
 function getAv(){return selAv==="custom"?document.getElementById("ca").value:AV.find(function(x){return x.id===selAv;}).d;}
 function getPr(){return selPr==="custom"?document.getElementById("cp").value:PR.find(function(x){return x.id===selPr;}).d;}
-
+function showErr(msg){
+  document.getElementById("err").textContent=msg;
+  document.getElementById("err").style.display="block";
+  document.getElementById("prog").style.display="none";
+  document.getElementById("abtn").disabled=false;
+  document.getElementById("abtn").textContent="ANALYZE";
+}
+function setStage(msg){document.getElementById("progmsg").textContent=msg;}
 function go(){
   var url=document.getElementById("url").value.trim();
   if(!url){showErr("Paste a TikTok URL first.");return;}
@@ -185,25 +175,15 @@ function go(){
   .catch(function(e){showErr("Error: "+e.message);})
   .finally(function(){
     document.getElementById("abtn").disabled=false;
-    document.getElementById("abtn").textContent="ANALYZE →";
+    document.getElementById("abtn").textContent="ANALYZE";
     document.getElementById("prog").style.display="none";
   });
 }
-
-function showErr(msg){
-  document.getElementById("err").textContent=msg;
-  document.getElementById("err").style.display="block";
-  document.getElementById("prog").style.display="none";
-  document.getElementById("abtn").disabled=false;
-  document.getElementById("abtn").textContent="ANALYZE →";
-}
-
 function cp2(){
   navigator.clipboard.writeText(resultTxt);
-  document.getElementById("cbtn").textContent="COPIED ✓";
+  document.getElementById("cbtn").textContent="COPIED";
   setTimeout(function(){document.getElementById("cbtn").textContent="COPY";},2000);
 }
-
 mkList(AV,"alist","hailey","av");
 mkList(PR,"plist","lamp","pr");
 </script>
@@ -219,23 +199,43 @@ async function scrapeTikTok(url) {
     { headers: { "Content-Type": "application/json" } }
   );
   const runId = startRes.data.data.id;
-  for (let i = 0; i < 24; i++) {
+
+  for (let i = 0; i < 30; i++) {
     await new Promise((r) => setTimeout(r, 5000));
     const statusRes = await axios.get("https://api.apify.com/v2/actor-runs/" + runId + "?token=" + APIFY_KEY);
-    const status = statusRes.data.data.status;
+    const runData = statusRes.data.data;
+    const status = runData.status;
+
     if (status === "SUCCEEDED") {
-      const datasetId = statusRes.data.data.defaultDatasetId;
+      const datasetId = runData.defaultDatasetId;
+      const kvStoreId = runData.defaultKeyValueStoreId;
+
       const items = await axios.get("https://api.apify.com/v2/datasets/" + datasetId + "/items?token=" + APIFY_KEY);
-      return items.data[0] || null;
+      const metadata = items.data[0] || null;
+      if (!metadata) return null;
+
+      // Get video from Apify KV store (avoids TikTok 403)
+      try {
+        const kvRes = await axios.get("https://api.apify.com/v2/key-value-stores/" + kvStoreId + "/keys?token=" + APIFY_KEY);
+        const keys = kvRes.data.items || [];
+        const videoKey = keys.find(function(k) { return k.key && k.key.match(/\.mp4$/i); });
+        if (videoKey) {
+          metadata._apifyVideoUrl = "https://api.apify.com/v2/key-value-stores/" + kvStoreId + "/records/" + encodeURIComponent(videoKey.key) + "?token=" + APIFY_KEY;
+        }
+      } catch(e) {
+        console.log("KV lookup error:", e.message);
+      }
+
+      return metadata;
     }
-    if (status === "FAILED" || status === "ABORTED") throw new Error("Apify run failed");
+    if (status === "FAILED" || status === "ABORTED") throw new Error("Apify scrape failed");
   }
-  throw new Error("Timed out waiting for Apify");
+  throw new Error("Timed out scraping TikTok");
 }
 
 async function downloadVideo(videoUrl) {
   const tmpFile = path.join(os.tmpdir(), "tiktok_" + Date.now() + ".mp4");
-  const response = await axios({ url: videoUrl, method: "GET", responseType: "stream" });
+  const response = await axios({ url: videoUrl, method: "GET", responseType: "stream", timeout: 60000 });
   const writer = fs.createWriteStream(tmpFile);
   response.data.pipe(writer);
   await new Promise((resolve, reject) => { writer.on("finish", resolve); writer.on("error", reject); });
@@ -249,38 +249,76 @@ async function extractFrames(videoPath) {
     ffmpeg(videoPath).on("end", resolve).on("error", reject)
       .screenshots({ count: 6, folder: outDir, filename: "frame_%i.jpg", size: "720x?" });
   });
-  return fs.readdirSync(outDir).sort().map((f) => fs.readFileSync(path.join(outDir, f)).toString("base64"));
+  return fs.readdirSync(outDir).sort().map(function(f) {
+    return fs.readFileSync(path.join(outDir, f)).toString("base64");
+  });
 }
 
 async function analyzeFrames(frames, metadata, avatarName, productDesc, mode, splitChange) {
-  const imageContent = frames.map((b64) => ({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64 } }));
+  const imageContent = frames.map(function(b64) {
+    return { type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64 } };
+  });
   const tasks = {
-    copy: "Create an exact frame-for-frame Higgsfield video prompt recreating this video. Keep EVERY visual element identical — setting, camera angle, lighting, framing, body language. Only swap the person with the avatar below.",
-    split: "Generate TWO Higgsfield prompts for A/B split test. Version A = original. Version B = change: " + splitChange + ". Avatar and action identical in both.",
-    hook: "Analyze what makes the first 1-3 seconds stop the scroll, then write a Higgsfield prompt recreating ONLY that hook moment with the new avatar, making it hit harder."
+    copy: "Create an exact frame-for-frame Higgsfield video prompt recreating this video. Keep EVERY visual element identical — setting, camera angle, lighting, framing, body language, action sequence. Only swap the person with the avatar below and feature the product below.",
+    split: "Generate TWO Higgsfield prompts for A/B split test. Version A = original environment. Version B = change: " + (splitChange || "different setting") + ". Avatar and action identical in both.",
+    hook: "Analyze what makes the first 1-3 seconds stop the scroll, then write a Higgsfield prompt recreating ONLY that hook moment with the new avatar, making it hit even harder."
   };
-  const res = await axios.post("https://api.anthropic.com/v1/messages", {
-    model: "claude-sonnet-4-6",
-    max_tokens: 1000,
-    system: "You are a TikTok video analyst and Higgsfield AI prompt engineer. Analyze frames precisely. Output ready-to-fire Higgsfield prompts. Style: UGC, iPhone, no color grading, no studio lighting, hyper realistic, action starts frame one.",
-    messages: [{ role: "user", content: [...imageContent, { type: "text", text: "These are " + frames.length + " frames from a viral TikTok.\nViews: " + (metadata.playCount || "?") + " | Likes: " + (metadata.diggCount || "?") + "\nCaption: " + (metadata.text || "none") + "\nAVATAR: " + avatarName + "\nPRODUCT: " + productDesc + "\nTASK: " + tasks[mode] }] }]
-  }, { headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "Content-Type": "application/json" } });
-  return (res.data.content.find((b) => b.type === "text") || {}).text || "";
+  const res = await axios.post(
+    "https://api.anthropic.com/v1/messages",
+    {
+      model: "claude-sonnet-4-6",
+      max_tokens: 1000,
+      system: "You are a TikTok video analyst and Higgsfield AI video prompt engineer. Analyze frames precisely — camera angle, lighting, body position, expression, action. Output ready-to-fire Higgsfield prompts. Always: UGC style, shot on iPhone, no color grading, no studio lighting, hyper realistic, action starts frame one, no dead space.",
+      messages: [{
+        role: "user",
+        content: [...imageContent, {
+          type: "text",
+          text: "These are 6 evenly-spaced frames from a viral TikTok.\n\nSTATS: " + (metadata.playCount || "?") + " views, " + (metadata.diggCount || "?") + " likes\nCAPTION: " + (metadata.text || "none") + "\nAUDIO: " + ((metadata.musicMeta && metadata.musicMeta.musicName) || "unknown") + "\n\nAVATAR TO USE: " + avatarName + "\nPRODUCT TO FEATURE: " + productDesc + "\n\nTASK: " + tasks[mode]
+        }]
+      }]
+    },
+    { headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "Content-Type": "application/json" } }
+  );
+  const block = res.data.content && res.data.content.find(function(b) { return b.type === "text"; });
+  return block ? block.text : "";
 }
 
 app.post("/analyze", async (req, res) => {
   const { tiktokUrl, avatarName, productDesc, mode, splitChange } = req.body;
   if (!tiktokUrl) return res.status(400).json({ error: "tiktokUrl is required" });
+
   let videoPath = null;
   try {
     const metadata = await scrapeTikTok(tiktokUrl);
-    if (!metadata) return res.status(400).json({ error: "Couldn't scrape that video." });
-    const videoUrl = metadata.videoUrl || metadata.downloadAddr || (metadata.videoMeta && metadata.videoMeta.downloadAddr);
-    if (!videoUrl) return res.status(400).json({ error: "No downloadable video found. Try a different URL." });
+    if (!metadata) return res.status(400).json({ error: "Couldn't scrape that video. Make sure it's a public TikTok." });
+
+    // Use Apify KV store URL first (no 403), then fall back to other fields
+    const videoUrl = metadata._apifyVideoUrl
+      || metadata.videoUrl
+      || (metadata.videoMeta && metadata.videoMeta.downloadAddr)
+      || metadata.downloadAddr;
+
+    if (!videoUrl) return res.status(400).json({ error: "No video found. Try a different TikTok URL." });
+
     videoPath = await downloadVideo(videoUrl);
     const frames = await extractFrames(videoPath);
-    const prompt = await analyzeFrames(frames, metadata, avatarName || "Hailey", productDesc || "LumaForge lamp", mode || "copy", splitChange || "");
-    res.json({ result: prompt, metadata: { views: metadata.playCount, likes: metadata.diggCount, shares: metadata.shareCount, author: metadata.authorMeta && metadata.authorMeta.name } });
+    const prompt = await analyzeFrames(
+      frames, metadata,
+      avatarName || "Hailey, 23, fair skin, bright blue eyes, long blonde hair",
+      productDesc || "LumaForge firefighter resin lamp",
+      mode || "copy",
+      splitChange || ""
+    );
+
+    res.json({
+      result: prompt,
+      metadata: {
+        views: metadata.playCount,
+        likes: metadata.diggCount,
+        shares: metadata.shareCount,
+        author: metadata.authorMeta && metadata.authorMeta.name
+      }
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message || "Something went wrong" });
@@ -289,6 +327,7 @@ app.post("/analyze", async (req, res) => {
   }
 });
 
-app.get("/health", (_, res) => res.json({ ok: true }));
+app.get("/health", (req, res) => res.json({ ok: true }));
+
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log("Running on port " + PORT));
+app.listen(PORT, function() { console.log("Running on port " + PORT); });

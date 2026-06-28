@@ -235,7 +235,14 @@ async function scrapeTikTok(url) {
 
 async function downloadVideo(videoUrl) {
   const tmpFile = path.join(os.tmpdir(), "tiktok_" + Date.now() + ".mp4");
-  const response = await axios({ url: videoUrl, method: "GET", responseType: "stream", timeout: 60000 });
+  const isApify = videoUrl.includes("api.apify.com");
+  const response = await axios({
+    url: videoUrl,
+    method: "GET",
+    responseType: "stream",
+    timeout: 60000,
+    headers: isApify ? { "Authorization": "Bearer " + APIFY_KEY } : {}
+  });
   const writer = fs.createWriteStream(tmpFile);
   response.data.pipe(writer);
   await new Promise((resolve, reject) => { writer.on("finish", resolve); writer.on("error", reject); });

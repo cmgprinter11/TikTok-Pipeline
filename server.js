@@ -278,8 +278,7 @@ function copyResult() {
   setTimeout(function() { btn.textContent = 'COPY'; btn.className = 'copy-btn'; }, 2000);
 }
 
-renderList(AVATARS, 'avatarList', selectedAvatar, 'avatar');
-renderList(PRODUCTS, 'productList', selectedProduct, 'product');
+document.addEventListener('DOMContentLoaded', function() { renderList(AVATARS, 'avatarList', selectedAvatar, 'avatar'); renderList(PRODUCTS, 'productList', selectedProduct, 'product'); });
 </script>
 </body>
 </html>`);
